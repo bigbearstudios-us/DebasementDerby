@@ -1,0 +1,28 @@
+name: Fetch BTC + FX prices
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes, UTC — GitHub may run a few minutes late under load
+  workflow_dispatch:          # lets you manually trigger a run from the Actions tab, for testing
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run fetch script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: npm run fetch
