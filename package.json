@@ -1,0 +1,16 @@
+{
+  "name": "debasement-derby-fetch",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Scheduled job: fetches BTC/USD and FX rates, upserts daily OHLC price data to Supabase.",
+  "main": "fetch-prices.js",
+  "scripts": {
+    "fetch": "node fetch-prices.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
