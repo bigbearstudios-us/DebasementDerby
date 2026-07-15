@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debasement Derby — Coming Soon</title>
+<meta name="description" content="Tracking which fiat currencies reach a new Bitcoin all-time high first — and what that says about how fast they're being debased.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121110;
+    --surface:#1c1a17;
+    --line:#33302b;
+    --text:#ede8dc;
+    --muted:#8f8a7d;
+    --btc:#f2a33d;
+    --lane-1:#2e9e8b;
+    --lane-2:#3e6fb0;
+    --lane-3:#c24b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:32px 20px;
+    position:relative;
+    overflow-x:hidden;
+  }
+  .checker{
+    position:fixed;
+    top:0;left:0;right:0;
+    height:10px;
+    background-image:linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%),
+                      linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%);
+    background-size:20px 20px;
+    background-position:0 0, 10px 10px;
+    opacity:0.5;
+  }
+  .wrap{
+    max-width:560px;
+    width:100%;
+    text-align:center;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:18px;
+  }
+  .eyebrow .dot{
+    color:var(--btc);
+  }
+  h1{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:clamp(48px, 11vw, 92px);
+    line-height:0.92;
+    letter-spacing:0.01em;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .tagline{
+    font-family:'IBM Plex Mono', monospace;
+    font-style:italic;
+    font-size:16px;
+    color:var(--btc);
+    margin-bottom:28px;
+  }
+  p.lede{
+    font-size:15px;
+    line-height:1.6;
+    color:var(--muted);
+    max-width:440px;
+    margin:0 auto 40px;
+  }
+  .track{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:24px 24px 20px;
+    margin-bottom:36px;
+    text-align:left;
+  }
+  .lane{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .lane:last-child{margin-bottom:0;}
+  .lane-track{
+    position:relative;
+    flex:1;
+    height:8px;
+    background:#0c0b0a;
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .lane-fill{
+    position:absolute;
+    left:0;top:0;bottom:0;
+    width:0%;
+    border-radius:4px;
+    animation:race 4.5s ease-in-out infinite;
+  }
+  .lane-1 .lane-fill{background:var(--lane-1); animation-delay:0s;}
+  .lane-2 .lane-fill{background:var(--lane-2); animation-delay:0.4s;}
+  .lane-3 .lane-fill{background:var(--lane-3); animation-delay:0.9s;}
+  .finish{
+    position:absolute;
+    right:14%;
+    top:-6px;
+    bottom:-6px;
+    width:1px;
+    background:repeating-linear-gradient(to bottom, var(--muted) 0, var(--muted) 3px, transparent 3px, transparent 6px);
+  }
+  @keyframes race{
+    0%{width:2%;}
+    55%{width:86%;}
+    100%{width:2%;}
+  }
+  .track-caption{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--muted);
+    text-align:right;
+    margin-top:14px;
+    letter-spacing:0.04em;
+  }
+  .handle{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    color:var(--btc);
+    text-decoration:none;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px 20px;
+    transition:border-color 0.15s ease;
+  }
+  .handle:hover, .handle:focus-visible{
+    border-color:var(--btc);
+    outline:none;
+  }
+  footer{
+    margin-top:56px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:0.04em;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .lane-fill{animation:none; width:40%;}
+  }
+</style>
+</head>
+<body>
+  <div class="checker"></div>
+  <div class="wrap">
+    <div class="eyebrow">Gates open soon <span class="dot">●</span></div>
+    <h1>Debasement<br>Derby</h1>
+    <div class="tagline">Where first is worst.</div>
+    <p class="lede">
+      Every currency in the world is racing toward its next Bitcoin all-time high.
+      The fastest ones aren't winning — they're telling you something about how fast they're being debased.
+    </p>
+
+    <div class="track" aria-hidden="true">
+      <div class="lane lane-1"><div class="lane-track"><div class="lane-fill"></div><div class="finish"></div></div></div>
+      <div class="lane lane-2"><div class="lane-track"><div class="lane-fill"></div><div class="finish"></div></div></div>
+      <div class="lane lane-3"><div class="lane-track"><div class="lane-fill"></div><div class="finish"></div></div></div>
+      <div class="track-caption">racing toward last cycle's ATH</div>
+    </div>
+
+    <a class="handle" href="https://x.com/debasementderby" target="_blank" rel="noopener">@debasementderby</a>
+
+    <footer>debasementderby.com · est. 2026</footer>
+  </div>
+</body>
+</html>
