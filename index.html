@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debasement Derby — Where first is worst.</title>
+<meta name="description" content="Tracking which fiat currencies reach a new Bitcoin all-time high first — and what that says about how fast they're being debased.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121110; --surface:#1c1a17; --surface-2:#221f1b; --line:#33302b;
+    --text:#ede8dc; --muted:#8f8a7d; --btc:#f2a33d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{ background:var(--bg); color:var(--text); font-family:'IBM Plex Sans', sans-serif; min-height:100vh; padding:32px 20px 64px; }
+  .wrap{ max-width:800px; margin:0 auto; }
+  header{ text-align:center; margin-bottom:24px; }
+  .eyebrow{ font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+  h1{ font-family:'Anton', sans-serif; font-weight:400; font-size:clamp(36px, 8vw, 58px); line-height:0.95; letter-spacing:0.01em; text-transform:uppercase; margin-bottom:6px; }
+  .tagline{ font-family:'IBM Plex Mono', monospace; font-style:italic; font-size:14px; color:var(--btc); margin-bottom:8px; }
+  .subline{ font-size:13px; color:var(--muted); max-width:480px; margin:0 auto; line-height:1.5; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:24px 0 8px; }
+  .ctrl-group{ display:flex; gap:6px; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:4px; }
+  .ctrl-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; padding:6px 12px; border:none; border-radius:4px;
+    background:transparent; color:var(--muted); cursor:pointer;
+  }
+  .ctrl-btn.active{ background:var(--surface-2); color:var(--text); }
+
+  .play-row{ display:flex; justify-content:center; align-items:center; gap:10px; margin:14px 0 6px; min-height:28px; }
+  .play-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; padding:6px 14px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer;
+  }
+  .play-date{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+
+  .meta-row{ display:flex; justify-content:space-between; align-items:baseline; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); margin:14px 0 10px; padding:0 2px; }
+
+  #rows{ display:flex; flex-direction:column; gap:8px; }
+  .row{ display:flex; align-items:center; gap:10px; }
+  .rank{ width:20px; font-size:12px; color:var(--muted); text-align:right; flex-shrink:0; }
+  .badge{ width:42px; flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:500; color:#161310; border-radius:4px; text-align:center; padding:3px 0; }
+  .name{ width:120px; flex-shrink:0; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track{ position:relative; flex:1; height:9px; background:var(--surface-2); border-radius:5px; }
+  .bar{ position:absolute; height:100%; border-radius:5px; transition:left 0.25s ease, width 0.25s ease; }
+  .zeroline{ position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--line); }
+  .pct{ width:52px; flex-shrink:0; text-align:right; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+
+  .state{ text-align:center; padding:48px 0; color:var(--muted); font-family:'IBM Plex Mono', monospace; font-size:13px; }
+
+  footer{ text-align:center; margin-top:40px; }
+  .handle{ display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--btc); text-decoration:none; border:1px solid var(--line); border-radius:4px; padding:9px 18px; }
+  .footnote{ margin-top:16px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); }
+
+  @media (max-width: 480px){
+    .name{ width:80px; font-size:11px; }
+    .badge{ width:36px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Live leaderboard <span style="color:var(--btc)">●</span></div>
+    <h1>Debasement Derby</h1>
+    <div class="tagline">Where first is worst.</div>
+    <p class="subline">Every currency is racing toward its own prior Bitcoin all-time high. Racing near the front isn't a good sign — it means that currency has been debased the fastest.</p>
+  </header>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn active" data-group="tab" data-value="halving">Since halving</button>
+      <button class="ctrl-btn" data-group="tab" data-value="low">Since low</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn" data-group="epoch" data-value="1">1st</button>
+      <button class="ctrl-btn" data-group="epoch" data-value="2">2nd</button>
+      <button class="ctrl-btn" data-group="epoch" data-value="3">3rd</button>
+      <button class="ctrl-btn active" data-group="epoch" data-value="4">Current</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn" data-group="tier" data-value="1">Tier 1</button>
+      <button class="ctrl-btn" data-group="tier" data-value="2">Tier 1+2</button>
+      <button class="ctrl-btn active" data-group="tier" data-value="3">Tier 1+2+3</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn active" data-group="window" data-value="current">Current</button>
+      <button class="ctrl-btn" data-group="window" data-value="3m">Last 3 months</button>
+      <button class="ctrl-btn" data-group="window" data-value="6m">Last 6 months</button>
+      <button class="ctrl-btn" data-group="window" data-value="full">Since halving/low</button>
+    </div>
+  </div>
+
+  <div class="play-row" id="play-row" style="display:none">
+    <button class="play-btn" id="play-btn">▶ Play</button>
+    <span class="play-date" id="play-date">—</span>
+  </div>
+
+  <div class="meta-row">
+    <span id="meta-left">—</span>
+    <span id="meta-right">—</span>
+  </div>
+
+  <div id="rows"><div class="state">Loading leaderboard…</div></div>
+
+  <footer>
+    <a class="handle" href="https://x.com/debasementderby" target="_blank" rel="noopener">@debasementderby</a>
+    <div class="footnote">debasementderby.com · est. 2026</div>
+  </footer>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // Publishable (anon) key — safe to expose client-side, this is exactly what it's for.
+  const SUPABASE_URL = 'https://aiqrexkzkxpeiubultffh.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_zOsM0hPMiiqgxsqbCP4eJQ_UFE2RqxC';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const COLORS = ['#2e9e8b','#3e6fb0','#c24b6b','#6e5aa6','#4a8fd1','#b0673e','#5aa66e','#a64f8f','#3e9ab0','#8f6e3e'];
+  const colorFor = (i) => COLORS[i % COLORS.length];
+  const MAX_ANIM_FRAMES = 90; // downsample so animation stays smooth even over a 2-year window
+
+  const state = { tab: 'halving', epoch: '4', tier: '3', window: 'current' };
+  const cache = {}; // keyed by `${tab}|${epoch}|${tier}` -> raw series rows
+  let animTimer = null;
+  let frames = []; // array of { date, rows: [{code,name,pct}] }, sorted ascending
+  let frameIndex = 0;
+
+  function cacheKey() { return `${state.tab}|${state.epoch}|${state.tier}`; }
+
+  async function fetchSeries() {
+    const key = cacheKey();
+    if (cache[key]) return cache[key];
+    const { data, error } = await supabase.rpc('get_leaderboard_series', {
+      p_epoch: Number(state.epoch),
+      p_max_tier: Number(state.tier),
+      p_tab: state.tab,
+    });
+    if (error) throw error;
+    cache[key] = data;
+    return data;
+  }
+
+  function buildFrames(rawRows) {
+    const byDate = {};
+    for (const r of rawRows) {
+      if (!byDate[r.snapshot_date]) byDate[r.snapshot_date] = [];
+      byDate[r.snapshot_date].push({ code: r.currency_code, name: r.currency_name, pct: Number(r.progress_pct) });
+    }
+    const dates = Object.keys(byDate).sort();
+    let allFrames = dates.map(d => ({ date: d, rows: byDate[d].sort((a, b) => b.pct - a.pct) }));
+
+    if (state.window === '3m' || state.window === '6m') {
+      const days = state.window === '3m' ? 90 : 180;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      allFrames = allFrames.filter(f => f.date >= cutoffStr);
+    }
+    // 'full' and 'current' use the entire series as returned (already epoch-bounded server-side)
+
+    // downsample for smooth animation, always keeping the last frame
+    if (allFrames.length > MAX_ANIM_FRAMES) {
+      const step = allFrames.length / MAX_ANIM_FRAMES;
+      const sampled = [];
+      for (let i = 0; i < MAX_ANIM_FRAMES; i++) sampled.push(allFrames[Math.floor(i * step)]);
+      sampled.push(allFrames[allFrames.length - 1]);
+      allFrames = sampled;
+    }
+    return allFrames;
+  }
+
+  function renderFrame(frame) {
+    const rowsEl = document.getElementById('rows');
+    if (!frame || frame.rows.length === 0) {
+      rowsEl.innerHTML = '<div class="state">No data for this selection.</div>';
+      return;
+    }
+    const values = frame.rows.map(r => r.pct);
+    const min = Math.min(0, ...values);
+    const max = Math.max(100, ...values);
+    const range = max - min || 1;
+    const zeroPct = ((0 - min) / range) * 100;
+    const scale = (v) => ((v - min) / range) * 100;
+
+    document.getElementById('play-date').textContent = frame.date;
+    document.getElementById('meta-right').textContent = `${frame.rows.length} currencies`;
+
+    rowsEl.innerHTML = '';
+    frame.rows.forEach((r, i) => {
+      const barStart = Math.min(zeroPct, scale(r.pct));
+      const barWidth = Math.abs(scale(r.pct) - zeroPct);
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `
+        <span class="rank">${i + 1}</span>
+        <span class="badge" style="background:${colorFor(i)}">${r.code}</span>
+        <span class="name">${r.name}</span>
+        <div class="track">
+          <div class="zeroline" style="left:${zeroPct}%"></div>
+          <div class="bar" style="left:${barStart}%; width:${barWidth}%; background:${colorFor(i)}"></div>
+        </div>
+        <span class="pct">${r.pct.toFixed(1)}%</span>
+      `;
+      rowsEl.appendChild(row);
+    });
+  }
+
+  function stopAnim() {
+    if (animTimer) { clearInterval(animTimer); animTimer = null; }
+    document.getElementById('play-btn').textContent = '▶ Play';
+  }
+
+  function playAnim() {
+    if (frames.length <= 1) return;
+    frameIndex = 0;
+    document.getElementById('play-btn').textContent = '⏸ Pause';
+    animTimer = setInterval(() => {
+      frameIndex++;
+      if (frameIndex >= frames.length) { stopAnim(); frameIndex = frames.length - 1; return; }
+      renderFrame(frames[frameIndex]);
+    }, 200);
+  }
+
+  async function reload() {
+    stopAnim();
+    document.getElementById('rows').innerHTML = '<div class="state">Loading leaderboard…</div>';
+    document.getElementById('meta-left').textContent = `Tab: ${state.tab === 'halving' ? 'Since halving' : 'Since low'} · Epoch ${state.epoch}`;
+
+    const isAnimated = state.window !== 'current';
+    document.getElementById('play-row').style.display = isAnimated ? 'flex' : 'none';
+
+    try {
+      const raw = await fetchSeries();
+      frames = buildFrames(raw);
+      if (frames.length === 0) {
+        document.getElementById('rows').innerHTML = '<div class="state">No data for this selection yet.</div>';
+        return;
+      }
+      frameIndex = frames.length - 1;
+      renderFrame(frames[frameIndex]); // always show the latest frame first, even for animated windows
+      if (isAnimated) playAnim();
+    } catch (e) {
+      document.getElementById('rows').innerHTML = `<div class="state">Couldn't load data: ${e.message}</div>`;
+    }
+  }
+
+  document.querySelectorAll('.ctrl-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.dataset.group;
+      document.querySelectorAll(`.ctrl-btn[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state[group] = btn.dataset.value;
+      reload();
+    });
+  });
+
+  document.getElementById('play-btn').addEventListener('click', () => {
+    if (animTimer) stopAnim();
+    else playAnim();
+  });
+
+  reload();
+</script>
+</body>
+</html>
