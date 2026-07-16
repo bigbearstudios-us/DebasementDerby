@@ -50,30 +50,47 @@ const YAHOO_CURRENCIES = ['kzt', 'egp', 'iqd', 'cop', 'pen'];
 const SKIPPED = ['ves'];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const FETCH_TIMEOUT_MS = 30000; // guards against a single stalled request (esp. Yahoo) hanging the whole job
 
-// --- Upsert helper: writes ONE historical row, open=high=low=close ------------------
-async function upsertHistoricalRow(currencyCode, dateStr, price, btcUsd, fxRate) {
-  const { error } = await supabase.from('price_snapshots').upsert(
-    {
-      currency_code: currencyCode.toUpperCase(),
-      snapshot_date: dateStr,
-      open_price: price,
-      high_price: price,
-      low_price: price,
-      close_price: price,
-      btc_usd_close: btcUsd,
-      fx_rate_close: fxRate,
-      last_updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'currency_code,snapshot_date' }
-  );
-  if (error) throw error;
+async function fetchWithTimeout(url, options = {}) {
+  return fetch(url, { ...options, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+}
+
+// --- Bulk upsert helper: writes MANY rows in one call, chunked to stay under
+// Supabase's request size limits. This replaces writing one row at a time, which
+// was the original (much slower) approach — with ~13 years of daily data across
+// dozens of currencies, one-row-at-a-time meant well over 100,000 sequential
+// database round-trips. Batching brings that down to a handful of calls per currency.
+const CHUNK_SIZE = 500;
+
+async function bulkUpsertRows(rows) {
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + CHUNK_SIZE);
+    const { error } = await supabase
+      .from('price_snapshots')
+      .upsert(chunk, { onConflict: 'currency_code,snapshot_date' });
+    if (error) throw error;
+  }
+}
+
+function makeRow(currencyCode, dateStr, price, btcUsd, fxRate) {
+  return {
+    currency_code: currencyCode.toUpperCase(),
+    snapshot_date: dateStr,
+    open_price: price,
+    high_price: price,
+    low_price: price,
+    close_price: price,
+    btc_usd_close: btcUsd,
+    fx_rate_close: fxRate,
+    last_updated_at: new Date().toISOString(),
+  };
 }
 
 // --- Step A: BTC/USD daily series, fetched once, reused everywhere ------------------
 async function getBtcUsdSeries() {
   const url = `https://pro-api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=usd&from=${BACKFILL_START_UNIX}&to=${NOW_UNIX}`;
-  const res = await fetch(url, { headers: { 'x-cg-pro-api-key': process.env.COINGECKO_PRO_API_KEY } });
+  const res = await fetchWithTimeout(url, { headers: { 'x-cg-pro-api-key': process.env.COINGECKO_PRO_API_KEY } });
   if (!res.ok) throw new Error(`CoinGecko BTC/USD range error: ${res.status} ${await res.text()}`);
   const data = await res.json();
   const byDate = {};
@@ -87,58 +104,61 @@ async function getBtcUsdSeries() {
 // --- Step B: currencies CoinGecko supports directly ---------------------------------
 async function backfillCoinGeckoDirect(currencyCode, btcUsdByDate) {
   if (currencyCode === 'usd') {
-    // already have this from Step A directly
-    for (const [date, price] of Object.entries(btcUsdByDate)) {
-      await upsertHistoricalRow('USD', date, price, price, 1.0);
-    }
+    const rows = Object.entries(btcUsdByDate).map(([date, price]) => makeRow('USD', date, price, price, 1.0));
+    await bulkUpsertRows(rows);
     return;
   }
   const url = `https://pro-api.coingecko.com/api/v3/coins/bitcoin/market_chart/range?vs_currency=${currencyCode}&from=${BACKFILL_START_UNIX}&to=${NOW_UNIX}`;
-  const res = await fetch(url, { headers: { 'x-cg-pro-api-key': process.env.COINGECKO_PRO_API_KEY } });
+  const res = await fetchWithTimeout(url, { headers: { 'x-cg-pro-api-key': process.env.COINGECKO_PRO_API_KEY } });
   if (!res.ok) throw new Error(`CoinGecko ${currencyCode} range error: ${res.status} ${await res.text()}`);
   const data = await res.json();
+  const rows = [];
   for (const [ts, price] of data.prices) {
     const date = new Date(ts).toISOString().slice(0, 10);
     const btcUsd = btcUsdByDate[date];
     if (!btcUsd) continue; // no matching USD point that day, skip rather than guess
-    const fxRate = price / btcUsd;
-    await upsertHistoricalRow(currencyCode, date, price, btcUsd, fxRate);
+    rows.push(makeRow(currencyCode, date, price, btcUsd, price / btcUsd));
   }
+  await bulkUpsertRows(rows);
 }
 
 // --- Step C: Frankfurter, for currencies CoinGecko doesn't cover (RON) ---------------
 async function backfillFrankfurter(currencyCode, btcUsdByDate) {
   const url = `https://api.frankfurter.dev/v1/${BACKFILL_START}..${new Date().toISOString().slice(0, 10)}?base=USD&symbols=${currencyCode.toUpperCase()}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Frankfurter ${currencyCode} error: ${res.status} ${await res.text()}`);
   const data = await res.json();
+  const rows = [];
   for (const [date, rates] of Object.entries(data.rates)) {
     const fxRate = rates[currencyCode.toUpperCase()];
     const btcUsd = btcUsdByDate[date];
     if (!fxRate || !btcUsd) continue;
-    await upsertHistoricalRow(currencyCode, date, btcUsd * fxRate, btcUsd, fxRate);
+    rows.push(makeRow(currencyCode, date, btcUsd * fxRate, btcUsd, fxRate));
   }
+  await bulkUpsertRows(rows);
 }
 
 // --- Step D: Yahoo Finance, best-effort for the 5 harder currencies ------------------
 async function backfillYahoo(currencyCode, btcUsdByDate) {
   const ticker = `${currencyCode.toUpperCase()}=X`;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${BACKFILL_START_UNIX}&period2=${NOW_UNIX}&interval=1d`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Yahoo ${ticker} error: ${res.status}`);
   const data = await res.json();
   const result = data?.chart?.result?.[0];
   if (!result) throw new Error(`Yahoo ${ticker}: no data in response`);
   const timestamps = result.timestamp;
   const closes = result.indicators.quote[0].close;
+  const rows = [];
   for (let i = 0; i < timestamps.length; i++) {
     const fxRate = closes[i];
     if (fxRate == null) continue;
     const date = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
     const btcUsd = btcUsdByDate[date];
     if (!btcUsd) continue;
-    await upsertHistoricalRow(currencyCode, date, btcUsd * fxRate, btcUsd, fxRate);
+    rows.push(makeRow(currencyCode, date, btcUsd * fxRate, btcUsd, fxRate));
   }
+  await bulkUpsertRows(rows);
 }
 
 // --- Main -----------------------------------------------------------------------------
