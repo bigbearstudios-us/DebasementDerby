@@ -91,7 +91,7 @@ async function run() {
   const [btcUsd, fxRates] = await Promise.all([getBtcUsd(), getFxRates()]);
   console.log(`BTC/USD: ${btcUsd}`);
 
-  const { data: currencies, error } = await supabase.from('currencies').select('code');
+     const { data: currencies, error } = await supabase.from('currencies').select('code').neq('code', 'VES');
   if (error) throw error;
 
   const results = { ok: [], skipped: [], failed: [] };
